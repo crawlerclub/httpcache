@@ -128,7 +128,6 @@ func GetClient() *HTTPClient {
 			},
 			client: &http.Client{},
 		}
-		log.Println("HTTP cache client initialized successfully")
 	})
 
 	if instance == nil {
@@ -157,12 +156,10 @@ func (hc *HTTPClient) Get(url string) ([]byte, error) {
 	ttl := hc.cache.getTTL(url)
 	if ttl > 0 {
 		if value, found := hc.cache.Get(key); found {
-			fmt.Println("Cache hit!")
 			return value, nil
 		}
 	}
 
-	fmt.Println("Cache miss. Making HTTP request...")
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
