@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/liuzl/store"
+	"github.com/projectdiscovery/useragent"
 )
 
 var (
@@ -162,7 +163,12 @@ func (hc *HTTPClient) Get(url string) ([]byte, error) {
 	}
 
 	fmt.Println("Cache miss. Making HTTP request...")
-	resp, err := hc.client.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", useragent.UserAgents[0].String())
+	resp, err := hc.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -221,6 +227,8 @@ func (hc *HTTPClient) Close() {
 	if err := hc.cache.store.Close(); err != nil {
 		log.Printf("Failed to close cache: %v", err)
 	}
+	instance = nil
+	once = sync.Once{}
 }
 
 func (c *Cache) findMatchingPolicy(url string) CachePolicy {
