@@ -1,0 +1,35 @@
+# HTTPCache Policy Configuration
+# Format: regex_pattern=duration
+# Duration units: s (seconds), m (minutes), h (hours), d (days)
+
+# Static resources - cache for longer periods
+.*\.(jpg|jpeg|png|gif|ico|css|js)$=24h
+.*\/static\/.*=12h
+.*\/assets\/.*=12h
+
+# API endpoints with different cache durations
+.*\/api\/v1\/products=30m          # Product listings change moderately
+.*\/api\/v1\/prices=5m             # Prices may change frequently
+.*\/api\/v1\/stock=1m              # Stock levels need frequent updates
+.*\/api\/v1\/user\/profile=15m     # User profiles
+.*\/api\/v1\/categories=1h         # Categories rarely change
+
+# News and content
+.*\/news\/latest=5m                # Recent news
+.*\/news\/archive\/.*=7d           # Archived news
+.*\/blog\/post\/.*=1h              # Blog posts
+
+# Search and feeds
+.*\/search\?.*=2m                  # Search results
+.*\/feed\.json=15m                 # RSS/JSON feeds
+.*\/sitemap\.xml=6h                # Sitemaps
+
+# Third-party APIs
+.*\.github\.com\/api\/.*=10m
+.*\.googleapis\.com\/.*=15m
+
+# Default policy - cache everything else for 10 minutes
+.*=10m
+
+# Note: Patterns are matched in order, first match wins
+# Use more specific patterns first, followed by more general ones 

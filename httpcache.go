@@ -51,13 +51,11 @@ var (
 )
 
 func loadPoliciesFromFile(filename string) ([]CachePolicy, error) {
-	// Default policy: cache everything for 10 minutes
 	defaultPolicy := CachePolicy{
 		Pattern: regexp.MustCompile(".*"),
 		TTL:     10 * time.Minute,
 	}
 
-	// If no file specified or file doesn't exist, return only default policy
 	if filename == "" {
 		return []CachePolicy{defaultPolicy}, nil
 	}
@@ -75,9 +73,14 @@ func loadPoliciesFromFile(filename string) ([]CachePolicy, error) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		// Skip empty lines and comments
+		// Skip empty lines and comment-only lines
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
+		}
+
+		// Remove inline comments
+		if idx := strings.Index(line, "#"); idx != -1 {
+			line = strings.TrimSpace(line[:idx])
 		}
 
 		parts := strings.Split(line, "=")
@@ -105,7 +108,6 @@ func loadPoliciesFromFile(filename string) ([]CachePolicy, error) {
 		return nil, fmt.Errorf("error reading policies file: %v", err)
 	}
 
-	// Add default policy at the end (will be used if no other patterns match)
 	policies = append(policies, defaultPolicy)
 	return policies, nil
 }
