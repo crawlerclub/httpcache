@@ -117,9 +117,9 @@ func TestCachePolicy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ttl := client.cache.getTTL(tt.url)
+			ttl := client.cache.GetTTL(tt.url)
 			if ttl != tt.wantTTL {
-				t.Errorf("getTTL() = %v, want %v", ttl, tt.wantTTL)
+				t.Errorf("GetTTL() = %v, want %v", ttl, tt.wantTTL)
 			}
 		})
 	}

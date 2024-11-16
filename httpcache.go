@@ -36,8 +36,8 @@ type CachePolicy struct {
 }
 
 type Cache struct {
-	store    *store.LevelStore
-	policies []CachePolicy
+	Store    *store.LevelStore
+	Policies []CachePolicy
 }
 
 type HTTPClient struct {
@@ -50,7 +50,7 @@ var (
 	once     sync.Once
 )
 
-func loadPoliciesFromFile(filename string) ([]CachePolicy, error) {
+func LoadPoliciesFromFile(filename string) ([]CachePolicy, error) {
 	defaultPolicy := CachePolicy{
 		Pattern: regexp.MustCompile(".*"),
 		TTL:     10 * time.Minute,
@@ -119,7 +119,7 @@ func loadPoliciesFromFile(filename string) ([]CachePolicy, error) {
 
 func GetClient() *HTTPClient {
 	once.Do(func() {
-		policies, err := loadPoliciesFromFile(*policiesFile)
+		policies, err := LoadPoliciesFromFile(*policiesFile)
 		if err != nil {
 			log.Fatalf("Failed to load cache policies: %v", err)
 		}
@@ -130,8 +130,8 @@ func GetClient() *HTTPClient {
 		}
 		instance = &HTTPClient{
 			cache: &Cache{
-				store:    store,
-				policies: policies,
+				Store:    store,
+				Policies: policies,
 			},
 			client: &http.Client{},
 		}
@@ -143,8 +143,8 @@ func GetClient() *HTTPClient {
 	return instance
 }
 
-func (c *Cache) getTTL(url string) time.Duration {
-	for _, policy := range c.policies {
+func (c *Cache) GetTTL(url string) time.Duration {
+	for _, policy := range c.Policies {
 		if policy.Pattern.MatchString(url) {
 			return policy.TTL
 		}
@@ -160,7 +160,7 @@ func hashKey(url string) string {
 func (hc *HTTPClient) Get(url string) ([]byte, error) {
 	key := hashKey(url)
 
-	ttl := hc.cache.getTTL(url)
+	ttl := hc.cache.GetTTL(url)
 	if ttl > 0 {
 		if value, found := hc.cache.Get(key); found {
 			return value, nil
@@ -191,7 +191,7 @@ func (hc *HTTPClient) Get(url string) ([]byte, error) {
 }
 
 func (c *Cache) Get(key string) ([]byte, bool) {
-	value, err := c.store.Get(key)
+	value, err := c.Store.Get(key)
 	if err != nil || value == nil {
 		return nil, false
 	}
@@ -202,7 +202,7 @@ func (c *Cache) Get(key string) ([]byte, bool) {
 	}
 
 	if time.Now().After(entry.ExpiresAt) {
-		_ = c.store.Delete(key)
+		_ = c.Store.Delete(key)
 		return nil, false
 	}
 
@@ -222,13 +222,13 @@ func (c *Cache) Set(key string, data []byte, url string, ttl time.Duration) {
 		return
 	}
 
-	if err := c.store.Put(key, encoded); err != nil {
+	if err := c.Store.Put(key, encoded); err != nil {
 		log.Printf("Failed to store cache entry: %v", err)
 	}
 }
 
 func (hc *HTTPClient) Close() {
-	if err := hc.cache.store.Close(); err != nil {
+	if err := hc.cache.Store.Close(); err != nil {
 		log.Printf("Failed to close cache: %v", err)
 	}
 	instance = nil
