@@ -83,24 +83,29 @@ func loadPoliciesFromFile(filename string) ([]CachePolicy, error) {
 			line = strings.TrimSpace(line[:idx])
 		}
 
-		parts := strings.Split(line, "=")
-		if len(parts) != 2 {
+		// Split on last = character
+		idx := strings.LastIndex(line, "=")
+		if idx == -1 {
 			return nil, fmt.Errorf("invalid policy format: %s", line)
 		}
+		pattern := strings.TrimSpace(line[:idx])
+		duration := strings.TrimSpace(line[idx+1:])
 
-		pattern, err := regexp.Compile(strings.TrimSpace(parts[0]))
+		// Compile pattern
+		compiledPattern, err := regexp.Compile(pattern)
 		if err != nil {
 			return nil, fmt.Errorf("invalid regex pattern: %s", err)
 		}
 
-		duration, err := time.ParseDuration(strings.TrimSpace(parts[1]))
+		// Parse duration
+		parsedDuration, err := time.ParseDuration(duration)
 		if err != nil {
 			return nil, fmt.Errorf("invalid duration: %s", err)
 		}
 
 		policies = append(policies, CachePolicy{
-			Pattern: pattern,
-			TTL:     duration,
+			Pattern: compiledPattern,
+			TTL:     parsedDuration,
 		})
 	}
 
@@ -228,13 +233,4 @@ func (hc *HTTPClient) Close() {
 	}
 	instance = nil
 	once = sync.Once{}
-}
-
-func (c *Cache) findMatchingPolicy(url string) CachePolicy {
-	for _, policy := range c.policies {
-		if policy.Pattern.MatchString(url) {
-			return policy
-		}
-	}
-	return CachePolicy{}
 }
