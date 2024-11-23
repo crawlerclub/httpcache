@@ -234,3 +234,23 @@ func (hc *HTTPClient) Close() {
 	instance = nil
 	once = sync.Once{}
 }
+
+// NewClient creates a new HTTPClient instance with custom policies and cache directory
+func NewClient(cacheDir string, policies []CachePolicy) (*HTTPClient, error) {
+	if cacheDir == "" {
+		return nil, fmt.Errorf("cache directory is required")
+	}
+
+	store, err := store.NewLevelStore(cacheDir + "/data")
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize cache: %+v", err)
+	}
+
+	return &HTTPClient{
+		cache: &Cache{
+			Store:    store,
+			Policies: policies,
+		},
+		client: &http.Client{},
+	}, nil
+}
