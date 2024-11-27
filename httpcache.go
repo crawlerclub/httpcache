@@ -265,3 +265,36 @@ func NewClient(cacheDir string, policies []CachePolicy) (*HTTPClient, error) {
 		client: &http.Client{},
 	}, nil
 }
+
+func (hc *HTTPClient) Fetch(url string, validator ContentValidator) ([]byte, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", useragent.UserAgents[0].String())
+	resp, err := hc.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	ttl := hc.cache.GetTTL(url)
+	if ttl > 0 {
+		shouldCache := true
+		if validator != nil {
+			shouldCache = validator(body)
+		}
+
+		if shouldCache {
+			key := hashKey(url)
+			hc.cache.Set(key, body, url, ttl)
+		}
+	}
+
+	return body, nil
+}
