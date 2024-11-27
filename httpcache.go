@@ -157,7 +157,9 @@ func hashKey(url string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-func (hc *HTTPClient) Get(url string) ([]byte, error) {
+type ContentValidator func([]byte) bool
+
+func (hc *HTTPClient) GetWithValidator(url string, validator ContentValidator) ([]byte, error) {
 	key := hashKey(url)
 
 	ttl := hc.cache.GetTTL(url)
@@ -183,11 +185,20 @@ func (hc *HTTPClient) Get(url string) ([]byte, error) {
 		return nil, err
 	}
 
-	if ttl > 0 {
+	shouldCache := true
+	if validator != nil {
+		shouldCache = validator(body)
+	}
+
+	if shouldCache && ttl > 0 {
 		hc.cache.Set(key, body, url, ttl)
 	}
 
 	return body, nil
+}
+
+func (hc *HTTPClient) Get(url string) ([]byte, error) {
+	return hc.GetWithValidator(url, nil)
 }
 
 func (c *Cache) Get(key string) ([]byte, bool) {
