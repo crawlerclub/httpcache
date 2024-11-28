@@ -298,3 +298,14 @@ func (hc *HTTPClient) Fetch(url string, validator ContentValidator) ([]byte, err
 
 	return body, nil
 }
+
+// Delete removes an entry from the cache
+func (c *Cache) Delete(key string) error {
+	return c.Store.Delete(key)
+}
+
+// DeleteURL removes the cached entry for the given URL
+func (hc *HTTPClient) DeleteURL(url string) error {
+	key := hashKey(url)
+	return hc.cache.Delete(key)
+}
