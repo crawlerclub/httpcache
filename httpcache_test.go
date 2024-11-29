@@ -155,3 +155,44 @@ func TestCacheExpiration(t *testing.T) {
 		t.Errorf("Responses don't match: %s != %s", string(data1), string(data2))
 	}
 }
+
+func TestHTTPClientRedirect(t *testing.T) {
+	// Initialize client
+	client := GetClient()
+
+	// Test case
+	originalURL := "https://httpbin.org/redirect/1"
+	expectedFinalURL := "https://httpbin.org/get"
+
+	// Test GetWithFinalURL
+	data, finalURL, err := client.GetWithFinalURL(originalURL)
+	if err != nil {
+		t.Fatalf("GetWithFinalURL failed: %v", err)
+	}
+
+	// Check if final URL matches expected
+	if finalURL != expectedFinalURL {
+		t.Errorf("Final URL mismatch:\ngot:  %s\nwant: %s", finalURL, expectedFinalURL)
+	}
+
+	// Verify that data is not empty
+	if len(data) == 0 {
+		t.Error("Received empty response body")
+	}
+
+	// Test cache behavior
+	// Second request should use cache and return same final URL
+	cachedData, cachedFinalURL, err := client.GetWithFinalURL(originalURL)
+	if err != nil {
+		t.Fatalf("Second request failed: %v", err)
+	}
+
+	if cachedFinalURL != expectedFinalURL {
+		t.Errorf("Cached final URL mismatch:\ngot:  %s\nwant: %s", cachedFinalURL, expectedFinalURL)
+	}
+
+	// Verify that both responses match
+	if string(data) != string(cachedData) {
+		t.Error("Cached response differs from original response")
+	}
+}

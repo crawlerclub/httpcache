@@ -27,6 +27,7 @@ var (
 type CacheEntry struct {
 	Data      []byte    `json:"data"`
 	URL       string    `json:"url"`
+	FinalURL  string    `json:"final_url"`
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
@@ -159,30 +160,32 @@ func hashKey(url string) string {
 
 type ContentValidator func([]byte) bool
 
-func (hc *HTTPClient) GetWithValidator(url string, validator ContentValidator) ([]byte, error) {
+func (hc *HTTPClient) GetWithValidator(url string, validator ContentValidator) ([]byte, string, error) {
 	key := hashKey(url)
 
 	ttl := hc.cache.GetTTL(url)
 	if ttl > 0 {
-		if value, found := hc.cache.Get(key); found {
-			return value, nil
+		if value, finalURL, found := hc.cache.Get(key); found {
+			return value, finalURL, nil
 		}
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	req.Header.Set("User-Agent", useragent.UserAgents[0].String())
 	resp, err := hc.client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer resp.Body.Close()
 
+	finalURL := resp.Request.URL.String()
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, finalURL, err
 	}
 
 	shouldCache := true
@@ -191,39 +194,45 @@ func (hc *HTTPClient) GetWithValidator(url string, validator ContentValidator) (
 	}
 
 	if shouldCache && ttl > 0 {
-		hc.cache.Set(key, body, url, ttl)
+		hc.cache.Set(key, body, url, finalURL, ttl)
 	}
 
-	return body, nil
+	return body, finalURL, nil
 }
 
 func (hc *HTTPClient) Get(url string) ([]byte, error) {
+	data, _, err := hc.GetWithValidator(url, nil)
+	return data, err
+}
+
+func (hc *HTTPClient) GetWithFinalURL(url string) ([]byte, string, error) {
 	return hc.GetWithValidator(url, nil)
 }
 
-func (c *Cache) Get(key string) ([]byte, bool) {
+func (c *Cache) Get(key string) ([]byte, string, bool) {
 	value, err := c.Store.Get(key)
 	if err != nil || value == nil {
-		return nil, false
+		return nil, "", false
 	}
 
 	var entry CacheEntry
 	if err := store.BytesToObject(value, &entry); err != nil {
-		return nil, false
+		return nil, "", false
 	}
 
 	if time.Now().After(entry.ExpiresAt) {
 		_ = c.Store.Delete(key)
-		return nil, false
+		return nil, "", false
 	}
 
-	return entry.Data, true
+	return entry.Data, entry.FinalURL, true
 }
 
-func (c *Cache) Set(key string, data []byte, url string, ttl time.Duration) {
+func (c *Cache) Set(key string, data []byte, url string, finalURL string, ttl time.Duration) {
 	entry := CacheEntry{
 		Data:      data,
 		URL:       url,
+		FinalURL:  finalURL,
 		ExpiresAt: time.Now().Add(ttl),
 	}
 
@@ -292,7 +301,7 @@ func (hc *HTTPClient) Fetch(url string, validator ContentValidator) ([]byte, err
 
 		if shouldCache {
 			key := hashKey(url)
-			hc.cache.Set(key, body, url, ttl)
+			hc.cache.Set(key, body, url, "", ttl)
 		}
 	}
 
