@@ -318,3 +318,31 @@ func (hc *HTTPClient) DeleteURL(url string) error {
 	key := hashKey(url)
 	return hc.cache.Delete(key)
 }
+
+func (hc *HTTPClient) FetchWithFinalURL(url string) ([]byte, string, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	req.Header.Set("User-Agent", useragent.UserAgents[0].String())
+	resp, err := hc.client.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	finalURL := resp.Request.URL.String()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, finalURL, err
+	}
+
+	ttl := hc.cache.GetTTL(url)
+	if ttl > 0 {
+		key := hashKey(url)
+		hc.cache.Set(key, body, url, finalURL, ttl)
+	}
+
+	return body, finalURL, nil
+}
