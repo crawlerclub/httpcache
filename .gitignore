@@ -24,4 +24,6 @@ go.work.sum
 # env file
 .env
 
-httpcache-info
+cmd/httpcache-info/httpcache-info
+.DS_Store
+*.html

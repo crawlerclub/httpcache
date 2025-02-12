@@ -16,6 +16,7 @@ import (
 var (
 	cacheDir = flag.String("cache_dir", ".httpcache", "Directory for HTTP cache storage")
 	url      = flag.String("url", "", "URL to check in cache")
+	outfile  = flag.String("outfile", "", "Output file to save the cache content")
 )
 
 type CacheEntry struct {
@@ -85,6 +86,14 @@ func main() {
 	}
 
 	printCacheEntry(key, &entry)
+
+	// Save to file if outfile is specified
+	if *outfile != "" {
+		if err := os.WriteFile(*outfile, entry.Data, 0644); err != nil {
+			log.Fatalf("Error writing to output file: %v", err)
+		}
+		fmt.Printf("Cache content saved to: %s\n", *outfile)
+	}
 
 	// Check if entry is expired
 	if time.Now().After(entry.ExpiresAt) {
