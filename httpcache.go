@@ -28,6 +28,7 @@ type CacheEntry struct {
 	Data      []byte    `json:"data"`
 	URL       string    `json:"url"`
 	FinalURL  string    `json:"final_url"`
+	CrawledAt time.Time `json:"crawled_at"`
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
@@ -220,7 +221,38 @@ func (c *Cache) Get(key string) ([]byte, string, bool) {
 		return nil, "", false
 	}
 
-	if time.Now().After(entry.ExpiresAt) {
+	// Check if entry has expired
+	now := time.Now()
+	isExpired := false
+
+	// If CrawledAt is set (not zero time), use it with the matching policy TTL
+	if !entry.CrawledAt.IsZero() {
+		// Default TTL if no matching policy is found
+		defaultTTL := 10 * time.Minute
+		foundMatchingPolicy := false
+
+		for _, policy := range c.Policies {
+			if policy.Pattern.MatchString(entry.URL) {
+				foundMatchingPolicy = true
+				if now.Sub(entry.CrawledAt) > policy.TTL {
+					isExpired = true
+				}
+				break
+			}
+		}
+
+		// If no matching policy is found, use the default TTL
+		if !foundMatchingPolicy {
+			if now.Sub(entry.CrawledAt) > defaultTTL {
+				isExpired = true
+			}
+		}
+	} else {
+		// Backward compatibility: use ExpiresAt for older entries
+		isExpired = now.After(entry.ExpiresAt)
+	}
+
+	if isExpired {
 		_ = c.Store.Delete(key)
 		return nil, "", false
 	}
@@ -229,11 +261,13 @@ func (c *Cache) Get(key string) ([]byte, string, bool) {
 }
 
 func (c *Cache) Set(key string, data []byte, url string, finalURL string, ttl time.Duration) {
+	now := time.Now()
 	entry := CacheEntry{
 		Data:      data,
 		URL:       url,
 		FinalURL:  finalURL,
-		ExpiresAt: time.Now().Add(ttl),
+		CrawledAt: now,
+		ExpiresAt: now.Add(ttl),
 	}
 
 	encoded, err := store.ObjectToBytes(entry)
