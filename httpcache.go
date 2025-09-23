@@ -231,25 +231,9 @@ func (c *Cache) Get(key string) ([]byte, string, bool) {
 
 	// If CrawledAt is set (not zero time), use it with the matching policy TTL
 	if !entry.CrawledAt.IsZero() {
-		// Default TTL if no matching policy is found
-		defaultTTL := 10 * time.Minute
-		foundMatchingPolicy := false
-
-		for _, policy := range c.Policies {
-			if policy.Pattern.MatchString(entry.URL) {
-				foundMatchingPolicy = true
-				if now.Sub(entry.CrawledAt) > policy.TTL {
-					isExpired = true
-				}
-				break
-			}
-		}
-
-		// If no matching policy is found, use the default TTL
-		if !foundMatchingPolicy {
-			if now.Sub(entry.CrawledAt) > defaultTTL {
-				isExpired = true
-			}
+		ttl := c.GetTTL(entry.URL)
+		if now.Sub(entry.CrawledAt) > ttl {
+			isExpired = true
 		}
 	} else {
 		// Backward compatibility: use ExpiresAt for older entries
