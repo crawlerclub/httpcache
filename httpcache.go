@@ -167,7 +167,11 @@ func (hc *HTTPClient) GetWithValidator(url string, validator ContentValidator) (
 	ttl := hc.cache.GetTTL(url)
 	if ttl > 0 {
 		if value, finalURL, found := hc.cache.Get(key); found {
-			return value, finalURL, nil
+			if validator == nil || validator(value) {
+				return value, finalURL, nil
+			}
+			// invalid cache, delete it
+			_ = hc.cache.Delete(key)
 		}
 	}
 
