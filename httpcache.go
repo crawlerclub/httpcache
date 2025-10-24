@@ -368,3 +368,7 @@ func (hc *HTTPClient) FetchWithFinalURL(url string) ([]byte, string, error) {
 
 	return body, finalURL, nil
 }
+
+func (hc *HTTPClient) GetStore() *store.LevelStore {
+	return hc.cache.Store
+}
